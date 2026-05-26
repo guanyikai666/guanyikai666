@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0元课出勤率统计</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .header .subtitle {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .filter-group label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 120px;
+            cursor: pointer;
+        }
+        .filter-group select:hover {
+            border-color: #667eea;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .summary-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .summary-card .label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .summary-card.highlight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .summary-card.highlight .value,
+        .summary-card.highlight .label {
+            color: white;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .tab:hover {
+            background: #e8ebfa;
+        }
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .table-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 13px;
+            color: #666;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .rate-high {
+            color: #52c41a;
+            font-weight: 600;
+        }
+        .rate-medium {
+            color: #faad14;
+            font-weight: 600;
+        }
+        .rate-low {
+            color: #ff4d4f;
+            font-weight: 600;
+        }
+        .rank {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .rank-1 { background: #ffd700; color: #8b6914; }
+        .rank-2 { background: #c0c0c0; color: #666; }
+        .rank-3 { background: #cd7f32; color: #fff; }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .reset-btn {
+            padding: 8px 16px;
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        .reset-btn:hover {
+            background: #ff7875;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 0元课出勤率统计</h1>
+            <div class="subtitle">进校业务渠道 | 数据维度：小组 × 学科 × 年级</div>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-group">
+                <label>小组</label>
+                <select id="filterGroup">
+                    <option value="">全部</option>
+                    <option value="张欢">张欢</option>
+                    <option value="管艺凯">管艺凯</option>
+                    <option value="孟畅">孟畅</option>
+                    <option value="刘咏琪">刘咏琪</option>
+                    <option value="范新业">范新业</option>
+                    <option value="霍永欣">霍永欣</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>学科</label>
+                <select id="filterSubject">
+                    <option value="">全部</option>
+                    <option value="数学">数学</option>
+                    <option value="语文">语文</option>
+                    <option value="英语">英语</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>年级</label>
+                <select id="filterGrade">
+                    <option value="">全部</option>
+                    <option value="一年级">一年级</option>
+                    <option value="二年级">二年级</option>
+                    <option value="三年级">三年级</option>
+                    <option value="四年级">四年级</option>
+                    <option value="五年级">五年级</option>
+                    <option value="六年级">六年级</option>
+                </select>
+            </div>
+            <button class="reset-btn" onclick="resetFilters()">重置筛选</button>
+        </div>
+
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="value" id="totalPerson">166,289</div>
+                <div class="label">总0元课人次</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" id="totalAttend">55,489</div>
+                <div class="label">总出勤人次</div>
+            </div>
+            <div class="summary-card highlight">
+                <div class="value" id="totalRate">33.37%</div>
+                <div class="label">总出勤率</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" id="filteredCount">48</div>
+                <div class="label">当前显示条数</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('detail')">明细数据</button>
+            <button class="tab" onclick="switchTab('group')">小组汇总</button>
+            <button class="tab" onclick="switchTab('subject')">学科汇总</button>
+            <button class="tab" onclick="switchTab('grade')">年级汇总</button>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header" id="tableTitle">各小组分年级分学科出勤率明细</div>
+            <div id="tableContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // 原始数据
+        const rawData = [
+            {group: "孟畅", subject: "数学", grade: "一年级", person: 2025, attend: 1014},
+            {group: "张欢", subject: "数学", grade: "一年级", person: 2025, attend: 1006},
+            {group: "刘咏琪", subject: "数学", grade: "三年级", person: 3501, attend: 1150},
+            {group: "管艺凯", subject: "数学", grade: "二年级", person: 2703, attend: 1250},
+            {group: "孟畅", subject: "数学", grade: "二年级", person: 675, attend: 251},
+            {group: "范新业", subject: "数学", grade: "五年级", person: 2927, attend: 1054},
+            {group: "孟畅", subject: "数学", grade: "六年级", person: 3023, attend: 928},
+            {group: "张欢", subject: "数学", grade: "四年级", person: 2893, attend: 943},
+            {group: "张欢", subject: "英语", grade: "一年级", person: 18, attend: 7},
+            {group: "管艺凯", subject: "英语", grade: "三年级", person: 811, attend: 246},
+            {group: "管艺凯", subject: "英语", grade: "二年级", person: 18, attend: 11},
+            {group: "范新业", subject: "英语", grade: "五年级", person: 523, attend: 146},
+            {group: "孟畅", subject: "英语", grade: "六年级", person: 436, attend: 108},
+            {group: "范新业", subject: "英语", grade: "四年级", person: 607, attend: 170},
+            {group: "范新业", subject: "语文", grade: "一年级", person: 4584, attend: 2082},
+            {group: "孟畅", subject: "语文", grade: "一年级", person: 4572, attend: 2062},
+            {group: "管艺凯", subject: "语文", grade: "一年级", person: 4468, attend: 1989},
+            {group: "张欢", subject: "语文", grade: "一年级", person: 2287, attend: 1012},
+            {group: "霍永欣", subject: "语文", grade: "一年级", person: 6944, attend: 2962},
+            {group: "刘咏琪", subject: "语文", grade: "一年级", person: 6938, attend: 2885},
+            {group: "管艺凯", subject: "语文", grade: "三年级", person: 4559, attend: 1504},
+            {group: "孟畅", subject: "语文", grade: "三年级", person: 4562, attend: 1498},
+            {group: "范新业", subject: "语文", grade: "三年级", person: 6850, attend: 2209},
+            {group: "霍永欣", subject: "语文", grade: "三年级", person: 7228, attend: 2257},
+            {group: "张欢", subject: "语文", grade: "三年级", person: 2280, attend: 697},
+            {group: "刘咏琪", subject: "语文", grade: "三年级", person: 2655, attend: 703},
+            {group: "孟畅", subject: "语文", grade: "二年级", person: 6023, attend: 2507},
+            {group: "范新业", subject: "语文", grade: "二年级", person: 4017, attend: 1656},
+            {group: "管艺凯", subject: "语文", grade: "二年级", person: 4016, attend: 1645},
+            {group: "张欢", subject: "语文", grade: "二年级", person: 2010, attend: 792},
+            {group: "刘咏琪", subject: "语文", grade: "二年级", person: 6234, attend: 2347},
+            {group: "霍永欣", subject: "语文", grade: "二年级", person: 4239, attend: 1566},
+            {group: "管艺凯", subject: "语文", grade: "五年级", person: 4898, attend: 1249},
+            {group: "孟畅", subject: "语文", grade: "五年级", person: 4912, attend: 1213},
+            {group: "范新业", subject: "语文", grade: "五年级", person: 4915, attend: 1180},
+            {group: "霍永欣", subject: "语文", grade: "五年级", person: 2457, attend: 579},
+            {group: "刘咏琪", subject: "语文", grade: "五年级", person: 4177, attend: 955},
+            {group: "管艺凯", subject: "语文", grade: "六年级", person: 2282, attend: 577},
+            {group: "范新业", subject: "语文", grade: "六年级", person: 4565, attend: 1078},
+            {group: "刘咏琪", subject: "语文", grade: "六年级", person: 2280, attend: 515},
+            {group: "孟畅", subject: "语文", grade: "六年级", person: 2283, attend: 478},
+            {group: "霍永欣", subject: "语文", grade: "六年级", person: 5589, attend: 1023},
+            {group: "管艺凯", subject: "语文", grade: "四年级", person: 2275, attend: 664},
+            {group: "张欢", subject: "语文", grade: "四年级", person: 4549, attend: 1322},
+            {group: "孟畅", subject: "语文", grade: "四年级", person: 4555, attend: 1304},
+            {group: "范新业", subject: "语文", grade: "四年级", person: 4959, attend: 1365},
+            {group: "霍永欣", subject: "语文", grade: "四年级", person: 4942, attend: 1330}
+        ];
+
+        let currentTab = 'detail';
+
+        // 计算出勤率
+        function calcRate(r) {
+            return r.attend / r.person;
+        }
+
+        // 获取筛选数据
+        function getFilteredData() {
+            const group = document.getElementById('filterGroup').value;
+            const subject = document.getElementById('filterSubject').value;
+            const grade = document.getElementById('filterGrade').value;
+
+            return rawData.filter(r => {
+                if (group && r.group !== group) return false;
+                if (subject && r.subject !== subject) return false;
+                if (grade && r.grade !== grade) return false;
+                return true;
+            });
+        }
+
+        // 更新汇总卡片
+        function updateSummary(filtered) {
+            const totalPerson = filtered.reduce((s, r) => s + r.person, 0);
+            const totalAttend = filtered.reduce((s, r) => s + r.attend, 0);
+            const totalRate = totalPerson > 0 ? totalAttend / totalPerson : 0;
+
+            document.getElementById('totalPerson').textContent = totalPerson.toLocaleString();
+            document.getElementById('totalAttend').textContent = totalAttend.toLocaleString();
+            document.getElementById('totalRate').textContent = (totalRate * 100).toFixed(2) + '%';
+            document.getElementById('filteredCount').textContent = filtered.length;
+        }
+
+        // 获取rate样式
+        function getRateClass(rate) {
+            if (rate >= 0.40) return 'rate-high';
+            if (rate >= 0.30) return 'rate-medium';
+            return 'rate-low';
+        }
+
+        // 渲染明细表格
+        function renderDetailTable(data) {
+            const sorted = [...data].sort((a, b) => {
+                if (a.subject !== b.subject) return a.subject.localeCompare(b.subject);
+                const gradeOrder = ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'];
+                return gradeOrder.indexOf(a.grade) - gradeOrder.indexOf(b.grade);
+            });
+
+            let html = `<table>
+                <thead>
+                    <tr>
+                        <th>渠道</th>
+                        <th>学科</th>
+                        <th>年级</th>
+                        <th>小组</th>
+                        <th>0元课人次</th>
+                        <th>出勤人次</th>
+                        <th>出勤率</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            sorted.forEach(r => {
+                const rate = calcRate(r);
+                const rateClass = getRateClass(rate);
+                html += `<tr>
+                    <td>进校业务</td>
+                    <td>${r.subject}</td>
+                    <td>${r.grade}</td>
+                    <td>${r.group}</td>
+                    <td>${r.person.toLocaleString()}</td>
+                    <td>${r.attend.toLocaleString()}</td>
+                    <td class="${rateClass}">${(rate * 100).toFixed(2)}%</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // 渲染小组汇总表格
+        function renderGroupTable(data) {
+            const grouped = {};
+            data.forEach(r => {
+                if (!grouped[r.group]) grouped[r.group] = {person: 0, attend: 0};
+                grouped[r.group].person += r.person;
+                grouped[r.group].attend += r.attend;
+            });
+
+            const sorted = Object.entries(grouped)
+                .map(([group, v]) => ({group, ...v, rate: v.attend / v.person}))
+                .sort((a, b) => b.rate - a.rate);
+
+            let html = `<table>
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>渠道</th>
+                        <th>小组</th>
+                        <th>0元课人次</th>
+                        <th>出勤人次</th>
+                        <th>出勤率</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            sorted.forEach((r, i) => {
+                const rateClass = getRateClass(r.rate);
+                html += `<tr>
+                    <td><span class="rank rank-${i+1}">${i+1}</span></td>
+                    <td>进校业务</td>
+                    <td>${r.group}</td>
+                    <td>${r.person.toLocaleString()}</td>
+                    <td>${r.attend.toLocaleString()}</td>
+                    <td class="${rateClass}">${(r.rate * 100).toFixed(2)}%</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // 渲染学科汇总表格
+        function renderSubjectTable(data) {
+            const grouped = {};
+            data.forEach(r => {
+                if (!grouped[r.subject]) grouped[r.subject] = {person: 0, attend: 0};
+                grouped[r.subject].person += r.person;
+                grouped[r.subject].attend += r.attend;
+            });
+
+            const sorted = Object.entries(grouped)
+                .map(([subject, v]) => ({subject, ...v, rate: v.attend / v.person}))
+                .sort((a, b) => b.rate - a.rate);
+
+            let html = `<table>
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>渠道</th>
+                        <th>学科</th>
+                        <th>0元课人次</th>
+                        <th>出勤人次</th>
+                        <th>出勤率</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            sorted.forEach((r, i) => {
+                const rateClass = getRateClass(r.rate);
+                html += `<tr>
+                    <td><span class="rank rank-${i+1}">${i+1}</span></td>
+                    <td>进校业务</td>
+                    <td>${r.subject}</td>
+                    <td>${r.person.toLocaleString()}</td>
+                    <td>${r.attend.toLocaleString()}</td>
+                    <td class="${rateClass}">${(r.rate * 100).toFixed(2)}%</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // 渲染年级汇总表格
+        function renderGradeTable(data) {
+            const grouped = {};
+            data.forEach(r => {
+                if (!grouped[r.grade]) grouped[r.grade] = {person: 0, attend: 0};
+                grouped[r.grade].person += r.person;
+                grouped[r.grade].attend += r.attend;
+            });
+
+            const gradeOrder = ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'];
+            const sorted = gradeOrder
+                .filter(g => grouped[g])
+                .map(grade => {
+                    const v = grouped[grade];
+                    return {grade, ...v, rate: v.attend / v.person};
+                })
+                .sort((a, b) => b.rate - a.rate);
+
+            let html = `<table>
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>渠道</th>
+                        <th>年级</th>
+                        <th>0元课人次</th>
+                        <th>出勤人次</th>
+                        <th>出勤率</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            sorted.forEach((r, i) => {
+                const rateClass = getRateClass(r.rate);
+                html += `<tr>
+                    <td><span class="rank rank-${i+1}">${i+1}</span></td>
+                    <td>进校业务</td>
+                    <td>${r.grade}</td>
+                    <td>${r.person.toLocaleString()}</td>
+                    <td>${r.attend.toLocaleString()}</td>
+                    <td class="${rateClass}">${(r.rate * 100).toFixed(2)}%</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // 切换Tab
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab:nth-child(${tab === 'detail' ? 1 : tab === 'group' ? 2 : tab === 'subject' ? 3 : 4})`).classList.add('active');
+
+            const titles = {
+                detail: '各小组分年级分学科出勤率明细',
+                group: '各小组汇总（按出勤率排名）',
+                subject: '各学科汇总（按出勤率排名）',
+                grade: '各年级汇总（按出勤率排名）'
+            };
+            document.getElementById('tableTitle').textContent = titles[tab];
+
+            render();
+        }
+
+        // 重置筛选
+        function resetFilters() {
+            document.getElementById('filterGroup').value = '';
+            document.getElementById('filterSubject').value = '';
+            document.getElementById('filterGrade').value = '';
+            render();
+        }
+
+        // 渲染
+        function render() {
+            const filtered = getFilteredData();
+            updateSummary(filtered);
+
+            const tables = {
+                detail: renderDetailTable,
+                group: renderGroupTable,
+                subject: renderSubjectTable,
+                grade: renderGradeTable
+            };
+
+            document.getElementById('tableContent').innerHTML = tables[currentTab](filtered);
+        }
+
+        // 绑定筛选事件
+        document.getElementById('filterGroup').addEventListener('change', render);
+        document.getElementById('filterSubject').addEventListener('change', render);
+        document.getElementById('filterGrade').addEventListener('change', render);
+
+        // 初始渲染
+        render();
+    </script>
+</body>
+</html>
